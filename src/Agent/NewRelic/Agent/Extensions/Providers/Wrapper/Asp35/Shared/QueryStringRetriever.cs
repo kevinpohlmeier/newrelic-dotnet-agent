@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Web;
 using NewRelic.Agent.Api;
+using NewRelic.Core.Logging;
 using NewRelic.Reflection;
 using NewRelic.SystemExtensions.Collections;
 
@@ -51,12 +52,23 @@ namespace NewRelic.Providers.Wrapper.Asp35.Shared
 
         private static NameValueCollection TryGetQueryString(HttpRequest request, IAgent agent)
         {
-            if (EnsureQueryString != null)
+            if (EnsureQueryString == null)
+                agent.Logger.Log(Agent.Extensions.Logging.Level.Finest, "EnsureQueryString() method accessor is null. ");
+            else
+            {
+                agent.Logger.Log(Agent.Extensions.Logging.Level.Finest, "EnsureQueryString() method accessor exists. ");
                 return EnsureQueryString(request);
+            }
 
-
-            if (GetQueryStringBackingField != null)
+            if (GetQueryStringBackingField == null)
+                agent.Logger.Log(Agent.Extensions.Logging.Level.Finest, "_queryString field accessor is null. ");
+            else
+            {
+                agent.Logger.Log(Agent.Extensions.Logging.Level.Finest, "_queryString field accessor exists. ");
                 return GetQueryStringBackingField(request);
+            }
+
+            agent.Logger.Log(Agent.Extensions.Logging.Level.Finest, "Unable to retrieve any paramerters from either calling EnsureQueryString() or _queryString private field. ");
 
             // If we don't have any way of grabbing the query string then our instrumentation is incomplete, likely because a new version of ASP.NET was released with unexpected changes.
             agent.HandleWrapperException(new NullReferenceException(nameof(GetQueryStringBackingField)));

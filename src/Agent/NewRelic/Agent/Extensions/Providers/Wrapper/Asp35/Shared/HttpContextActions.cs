@@ -8,6 +8,7 @@ using System.Web;
 using NewRelic.Agent.Api;
 using NewRelic.Agent.Api.Experimental;
 using NewRelic.Agent.Extensions.Providers.Wrapper;
+using NewRelic.Core.Logging;
 using NewRelic.Reflection;
 using NewRelic.SystemExtensions.Collections;
 
@@ -118,6 +119,30 @@ namespace NewRelic.Providers.Wrapper.Asp35.Shared
         {
             var parameters = QueryStringRetriever.TryGetQueryStringAsDictionary(httpContext.Request, agent)
                 ?? Enumerable.Empty<KeyValuePair<string, string>>();
+
+            if (parameters.Count() == 0)
+            {
+                agent.Logger.Log(Agent.Extensions.Logging.Level.Finest, "No request parameters was retrieved from using QueryStringRetriever.");
+            } 
+
+            foreach(var p in parameters)
+            {
+                agent.Logger.Log(Agent.Extensions.Logging.Level.Finest, "Request parameters captured from using QueryStringRetriever: " + @$"key: {p.Key}, value: {p.Value}" );
+            }
+
+
+            var parametersFromHttpContext = httpContext.Request.QueryString.ToDictionary();
+
+            if (parametersFromHttpContext.Count == 0)
+            {
+                agent.Logger.Log(Agent.Extensions.Logging.Level.Finest, "No request parameters was retrieved from using httpContext.Request.QueryString .");
+            }
+
+            foreach (var p in parametersFromHttpContext)
+            {
+                agent.Logger.Log(Agent.Extensions.Logging.Level.Finest, "Request parameters captured from using httpContext.Request.QueryString: " + @$"key: {p.Key}, value: {p.Value}");
+            }
+
             agent.CurrentTransaction.SetRequestParameters(parameters);
         }
 
