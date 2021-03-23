@@ -7,6 +7,7 @@ using NewRelic.Agent.Core.Attributes;
 using NewRelic.Agent.Core.Segments;
 using NewRelic.Agent.Core.Transactions;
 using NewRelic.Core;
+using NewRelic.Core.Logging;
 
 namespace NewRelic.Agent.Core.Spans
 {
@@ -88,6 +89,8 @@ namespace NewRelic.Agent.Core.Spans
             spanAttributes.AddRange(transactionAttribValues.GetAttributeValues(AttributeClassification.UserAttributes));
 
             spanAttributes.MakeImmutable();
+
+            Log.Finest($"SpanEventMaker - root span {rootSpanId} generated.");
 
             return spanAttributes;
         }

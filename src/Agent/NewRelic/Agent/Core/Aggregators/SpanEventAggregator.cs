@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using NewRelic.Core.Logging;
 
 namespace NewRelic.Agent.Core.Aggregators
 {
@@ -97,6 +98,9 @@ namespace NewRelic.Agent.Core.Aggregators
             {
                 _readerWriterLockSlim.ExitReadLock();
             }
+
+            Log.Debug($"SpanEventAggregator - {added}/{wireModels.Count()} span events were added to span reservoirs.");
+
             _agentHealthReporter.ReportSpanEventCollected(added);
         }
 
