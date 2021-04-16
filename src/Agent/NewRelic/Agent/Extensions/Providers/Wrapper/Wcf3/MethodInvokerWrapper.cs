@@ -177,6 +177,10 @@ namespace NewRelic.Providers.Wrapper.Wcf3
                 transaction.SetWebTransactionName(WebTransactionType.WCF, transactionName, TransactionNamePriority.FrameworkHigh);
                 transaction.SetRequestParameters(parameters);
 
+                var requestHeaders = GetHeaders(agent, OperationContext.Current);
+
+                transaction.SetRequestHeaders(requestHeaders);
+
                 if (!transactionAlreadyExists)
                 {
                     var transportType = TransportType.Other;
@@ -310,6 +314,51 @@ namespace NewRelic.Providers.Wrapper.Wcf3
                         }
                     }
                 });
+        }
+
+        private IEnumerable<KeyValuePair<string, string>> GetHeaders(IAgent agent, OperationContext context)
+        {
+            if (!agent.Configuration.AllowAllHeaders)
+            {
+                return null;
+            }
+            
+            var headers = new List<KeyValuePair<string, string>>();
+            if (context.IncomingMessageProperties != null && context.IncomingMessageProperties.TryGetValue(HttpRequestMessageProperty.Name, out var httpRequestMessageAsObject))
+            {
+                var httpRequestMessage = httpRequestMessageAsObject as HttpRequestMessageProperty;
+                if (httpRequestMessage != null && httpRequestMessage.Headers != null)
+                {
+                    foreach (var key in httpRequestMessage.Headers.AllKeys)
+                    {
+                        headers.Add(new KeyValuePair<string, string>(key, httpRequestMessage.Headers.Get(key)));
+                    }
+                    return headers;
+                }
+            }
+
+            //This is to capture SOAP headers. Not sure if it is necessary.
+            if (headers.Count == 0 && context.IncomingMessageHeaders != null)
+            {
+                try
+                {
+                    foreach(var a in context.IncomingMessageHeaders)
+                    {
+                        var idx = context.IncomingMessageHeaders.FindHeader(a.Name, a.Namespace);
+                        var value = context.IncomingMessageHeaders.GetHeader<string>(idx);
+                        headers.Add(new KeyValuePair<string, string>(a.Name, value));
+                    }
+                    return headers;
+                }
+                catch
+                {
+                    //Some of the headers cannot be extracted as strings.
+                    //This catch will prevent this from bubbling up.
+                    //Nonetheless, this header cannot be retrieved using this method.
+                }
+            }
+
+            return headers;
         }
 
         /// <summary>

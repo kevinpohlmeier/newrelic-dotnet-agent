@@ -407,7 +407,23 @@
           </xs:complexType>
         </xs:element>
 
-        <xs:element name="attributes" minOccurs="0" maxOccurs="1">
+          <xs:element name="allowAllHeaders" minOccurs="0" maxOccurs="1">
+              <xs:complexType>
+                  <xs:annotation>
+                      <xs:documentation>
+                          All all request headers to be captured as attributes.
+                      </xs:documentation>
+                  </xs:annotation>
+                  <xs:attribute name="enabled" type="xs:boolean" default="true">
+                      <xs:annotation>
+                          <xs:documentation>
+                              Turns on capturing. Enabled by default.
+                          </xs:documentation>
+                      </xs:annotation>
+                  </xs:attribute>
+              </xs:complexType>
+          </xs:element>
+          <xs:element name="attributes" minOccurs="0" maxOccurs="1">
           <xs:annotation>
             <xs:documentation>
               The attributes element tells the transaction tracer, error collector, browser monitoring and transaction events whether or not to capture any attributes.

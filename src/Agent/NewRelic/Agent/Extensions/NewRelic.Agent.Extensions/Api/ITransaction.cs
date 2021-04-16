@@ -250,6 +250,9 @@ namespace NewRelic.Agent.Api
         /// <exception cref="ArgumentNullException"></exception>
         void SetRequestParameters(IEnumerable<KeyValuePair<string, string>> parameters);
 
+        void SetRequestHeaders(IEnumerable<KeyValuePair<string, string>> parameters);
+
+
         /// <summary>
         /// Saves and returns the value of evaluating func to a cache. func is only evaluated if the key does not yet exist in the cache.
         /// </summary>

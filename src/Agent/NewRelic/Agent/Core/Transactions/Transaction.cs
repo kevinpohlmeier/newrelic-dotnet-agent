@@ -820,6 +820,23 @@ namespace NewRelic.Agent.Core.Transactions
             TransactionMetadata.SetQueueTime(queueTime);
         }
 
+        public void SetRequestHeaders(IEnumerable<KeyValuePair<string, string>> parameters)
+        {
+            if (parameters == null)
+            {
+                throw new ArgumentNullException(nameof(parameters));
+            }
+
+            foreach (var parameter in parameters)
+            {
+                if (parameter.Key != null && parameter.Value != null)
+                {
+                    var paramAttribute = _attribDefs.GetRequestHeadersAttribute(parameter.Key);
+                    TransactionMetadata.UserAndRequestAttributes.TrySetValue(paramAttribute, parameter.Value);
+                }
+            }
+        }
+
         public void SetRequestParameters(IEnumerable<KeyValuePair<string, string>> parameters)
         {
             if (parameters == null)

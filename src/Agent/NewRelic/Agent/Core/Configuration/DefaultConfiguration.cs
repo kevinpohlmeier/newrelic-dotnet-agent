@@ -425,6 +425,8 @@ namespace NewRelic.Agent.Core.Configuration
 
         private IEnumerable<string> _captureAttributesExcludes;
 
+        public virtual bool AllowAllHeaders => _localConfiguration.allowAllHeaders.enabled;
+
         public virtual IEnumerable<string> CaptureAttributesExcludes
         {
             get

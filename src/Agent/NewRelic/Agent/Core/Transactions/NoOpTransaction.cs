@@ -267,5 +267,9 @@ namespace NewRelic.Agent.Core.Transactions
         {
             return;
         }
+
+        public void SetRequestHeaders(IEnumerable<KeyValuePair<string, string>> parameters)
+        {
+        }
     }
 }
