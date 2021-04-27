@@ -7,6 +7,7 @@ using NewRelic.Agent.Core.Metric;
 using NewRelic.Agent.Core.Transactions;
 using NewRelic.Agent.Core.Aggregators;
 using NewRelic.Agent.Core.Attributes;
+using NewRelic.Core.Logging;
 
 namespace NewRelic.Agent.Core.Transformers.TransactionTransformer
 {
@@ -36,6 +37,21 @@ namespace NewRelic.Agent.Core.Transformers.TransactionTransformer
 
             SetUserAndAgentAttributes(attribVals, immutableTransaction.TransactionMetadata);
             SetIntrinsicAttributes(attribVals, immutableTransaction, transactionMetricName, apdexT, totalTime, txStats);
+
+            foreach (var a in attribVals.GetAttributeValuesDic(AttributeClassification.AgentAttributes))
+            {
+                Log.FinestFormat(@$"Trx : {immutableTransaction.Guid} TransactionAttributeMaker created an Agent attribute: key={a.Key}, value={a.Value}");
+            }
+
+            foreach (var a in attribVals.GetAttributeValuesDic(AttributeClassification.Intrinsics))
+            {
+                Log.FinestFormat(@$"Trx : {immutableTransaction.Guid} TransactionAttributeMaker created an Instrinsic attribute: key={a.Key}, value={a.Value}");
+            }
+
+            foreach (var a in attribVals.GetAttributeValuesDic(AttributeClassification.UserAttributes))
+            {
+                Log.FinestFormat(@$"Trx : {immutableTransaction.Guid} TransactionAttributeMaker created a User attribute: key={a.Key}, value={a.Value}");
+            }
 
             return attribVals;
         }
