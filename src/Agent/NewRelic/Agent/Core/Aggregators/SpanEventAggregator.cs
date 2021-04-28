@@ -152,12 +152,15 @@ namespace NewRelic.Agent.Core.Aggregators
                     break;
                 case DataTransportResponseStatus.Retain:
                     RetainEvents(spanEvents);
+                    Log.Debug($"SpanEventAggregator - {spanEvents.Count} span events are retained for the next harvest cycle.");
                     break;
                 case DataTransportResponseStatus.ReduceSizeIfPossibleOtherwiseDiscard:
                     ReduceReservoirSize((int)(spanEvents.Count * ReservoirReductionSizeMultiplier));
                     RetainEvents(spanEvents);
                     break;
                 case DataTransportResponseStatus.Discard:
+                    Log.Debug($"SpanEventAggregator - {spanEvents.Count} span events are discarded due to server error.");
+                    break;
                 default:
                     break;
             }

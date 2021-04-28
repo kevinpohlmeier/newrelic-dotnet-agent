@@ -329,6 +329,9 @@ namespace NewRelic.Agent.Core.Transformers.TransactionTransformer
             }
 
             var spanEvents = _spanEventMaker.GetSpanEvents(immutableTransaction, transactionName, attributes.Invoke());
+
+            Log.Debug($"Trx {immutableTransaction.Guid} : TransactionTransformer - {spanEvents.Count()} span events are generated.");
+
             using (_agentTimerService.StartNew("CollectSpanEvents"))
             {
                 if (useInfiniteTracing)

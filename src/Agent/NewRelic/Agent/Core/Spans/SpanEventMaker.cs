@@ -90,7 +90,7 @@ namespace NewRelic.Agent.Core.Spans
 
             spanAttributes.MakeImmutable();
 
-            Log.Finest($"SpanEventMaker - root span {rootSpanId} generated.");
+            Log.Debug($"Trx {immutableTransaction.Guid} : SpanEventMaker - root span {rootSpanId} generated.");
 
             return spanAttributes;
         }
