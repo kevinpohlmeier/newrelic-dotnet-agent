@@ -78,7 +78,7 @@ namespace MultiFunctionApplicationHelpers.NetStandardLibraries
             var configuration = new BusConfiguration();
             configuration.UsePersistence<InMemoryPersistence>();
             // limits the search for handlers to this specific assembly, otherwise it will traverse all referenced assemblies looking for handlers.
-            configuration.AssembliesToScan(Assembly.Load("MultiFunctionApplicationHelpers"));
+            //configuration.AssembliesToScan(Assembly.Load("NServiceBusCommands"));
             return NServiceBus.Bus.Create(configuration);
         }
 
