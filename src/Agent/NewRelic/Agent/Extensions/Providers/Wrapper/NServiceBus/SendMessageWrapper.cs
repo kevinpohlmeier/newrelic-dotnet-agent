@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System;
-using System.Linq;
+using System.Collections.Generic;
 using NewRelic.Agent.Api;
 using NewRelic.Agent.Extensions.Providers.Wrapper;
+using NewRelic.Reflection;
 using NewRelic.SystemExtensions;
-using NServiceBus.Unicast.Messages;
 
 namespace NewRelic.Providers.Wrapper.NServiceBus
 {
@@ -20,6 +20,11 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
         private const string WrapperName = "SendMessageWrapper";
         private const string BrokerVendorName = "NServiceBus";
 
+        private const string LogicalMessageType = "NServiceBus.Unicast.Messages.LogicalMessage";
+        private const int LogicalMessageIndex = 1;
+
+        private static Func<object, object> _getHeadersFunc;
+
         public CanWrapResponse CanWrap(InstrumentedMethodInfo methodInfo)
         {
             return new CanWrapResponse(WrapperName.Equals(methodInfo.RequestedWrapperName));
@@ -27,7 +32,13 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
 
         public AfterWrappedMethodDelegate BeforeWrappedMethod(InstrumentedMethodCall instrumentedMethodCall, IAgent agent, ITransaction transaction)
         {
-            var logicalMessage = instrumentedMethodCall.MethodCall.MethodArguments.ExtractNotNullAs<LogicalMessage>(1);
+            var logicalMessage = instrumentedMethodCall.MethodCall.MethodArguments.ExtractNotNullAs<object>(LogicalMessageIndex);
+
+            //If the NServiceBus version doesn't provide the LogicalMessage parameter we just bail.
+            if (logicalMessage.GetType().FullName != LogicalMessageType)
+            {
+                return Delegates.NoOp;
+            }
 
             var queueName = TryGetQueueName(logicalMessage);
             var segment = transaction.StartMessageBrokerSegment(instrumentedMethodCall.MethodCall, MessageBrokerDestinationType.Queue, MessageBrokerAction.Produce, BrokerVendorName, queueName);
@@ -36,35 +47,69 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
             return Delegates.GetDelegateFor(segment);
         }
 
-        private static void CreateOutboundHeaders(IAgent agent, LogicalMessage logicalMessage)
+        private static void CreateOutboundHeaders(IAgent agent, object logicalMessage)
         {
-            if (logicalMessage.Headers == null)
-                return;
-
-            var setHeaders = new Action<LogicalMessage, string, string>((carrier, key, value) =>
+            // not sure why we just bail if the headers are null, we might not want to keep this behavior
+            var headers = GetHeaders(logicalMessage);
+            if (headers == null)
             {
-                if (carrier.Headers.ContainsKey(key))
+                return;
+            }
+
+            var setHeaders = new Action<object, string, string>((carrier, key, value) =>
+            {
+                var headers = GetHeaders(carrier);
+
+                if (headers == null)
                 {
-                    carrier.Headers.Remove(key);
+                    headers = new Dictionary<string, object>();
+                    SetHeaders(carrier, headers);
+                }
+                else if (headers is IReadOnlyDictionary<string, object>)
+                {
+                    headers = new Dictionary<string, object>(headers);
+                    SetHeaders(carrier, headers);
                 }
 
-                carrier.Headers.Add(key, value);
+                headers[key] = value;
             });
 
             agent.CurrentTransaction.InsertDistributedTraceHeaders(logicalMessage, setHeaders);
         }
+
+        public static IDictionary<string, object> GetHeaders(object logicalMessage)
+        {
+            var func = _getHeadersFunc ?? (_getHeadersFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<object>(logicalMessage.GetType(), "Headers"));
+            return func(logicalMessage) as IDictionary<string, object>;
+        }
+
+        public static void SetHeaders(object logicalMessage, IDictionary<string, object> headers)
+        {
+            // Unlike the GetHeaders function, we can't cache this action.  It is only valid for the specific logicalMessage object instance provided.
+            var action = VisibilityBypasser.Instance.GeneratePropertySetter<IDictionary<string, object>>(logicalMessage, "Headers");
+
+            action(headers);
+        }
+
 
         /// <summary>
         /// Returns a metric name based on the type of message. The source/destination queue isn't always known (depending on the circumstances) and in some cases isn't even relevant. The message type is always known and is always relevant.
         /// </summary>
         /// <param name="logicalMessage"></param>
         /// <returns></returns>
-        private static string TryGetQueueName(LogicalMessage logicalMessage)
+        private static string TryGetQueueName(object logicalMessage)
         {
-            if (logicalMessage.MessageType == null)
-                return null;
+            var getMessageTypeFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<object>(logicalMessage.GetType(), "MessageType");
 
-            return logicalMessage.MessageType.FullName;
+            var messageType = getMessageTypeFunc(logicalMessage);
+
+            if (messageType == null)
+            {
+                return null;
+            }
+
+            var getFullNameFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<object>(messageType.GetType(), "FullName");
+            return getFullNameFunc(messageType) as string;
         }
     }
 }
