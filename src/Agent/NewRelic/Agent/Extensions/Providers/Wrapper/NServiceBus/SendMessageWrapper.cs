@@ -17,20 +17,20 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
     {
         public bool IsTransactionRequired => true;
 
+        private const string WrapperName = "SendMessageWrapper";
+        private const string BrokerVendorName = "NServiceBus";
+
         public CanWrapResponse CanWrap(InstrumentedMethodInfo methodInfo)
         {
-            var method = methodInfo.Method;
-            var canWrap = method.MatchesAny(assemblyName: "NServiceBus.Core", typeName: "NServiceBus.Unicast.UnicastBus", methodName: "SendMessage", parameterSignature: "NServiceBus.Unicast.SendOptions,NServiceBus.Unicast.Messages.LogicalMessage");
-            return new CanWrapResponse(canWrap);
+            return new CanWrapResponse(WrapperName.Equals(methodInfo.RequestedWrapperName));
         }
 
         public AfterWrappedMethodDelegate BeforeWrappedMethod(InstrumentedMethodCall instrumentedMethodCall, IAgent agent, ITransaction transaction)
         {
             var logicalMessage = instrumentedMethodCall.MethodCall.MethodArguments.ExtractNotNullAs<LogicalMessage>(1);
 
-            const string brokerVendorName = "NServiceBus";
             var queueName = TryGetQueueName(logicalMessage);
-            var segment = transaction.StartMessageBrokerSegment(instrumentedMethodCall.MethodCall, MessageBrokerDestinationType.Queue, MessageBrokerAction.Produce, brokerVendorName, queueName);
+            var segment = transaction.StartMessageBrokerSegment(instrumentedMethodCall.MethodCall, MessageBrokerDestinationType.Queue, MessageBrokerAction.Produce, BrokerVendorName, queueName);
 
             CreateOutboundHeaders(agent, logicalMessage);
             return Delegates.GetDelegateFor(segment);

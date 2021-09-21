@@ -16,13 +16,14 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
     /// </summary>
     public class ReceiveMessageWrapper : IWrapper
     {
+        private const string BrokerVendorName = "NServiceBus";
+        private const string WrapperName = "ReceiveMessageWrapper";
+
         public bool IsTransactionRequired => false;
 
         public CanWrapResponse CanWrap(InstrumentedMethodInfo methodInfo)
         {
-            var method = methodInfo.Method;
-            var canWrap = method.MatchesAny(assemblyName: "NServiceBus.Core", typeName: "NServiceBus.InvokeHandlersBehavior", methodName: "Invoke", parameterSignature: "NServiceBus.Pipeline.Contexts.IncomingContext,System.Action");
-            return new CanWrapResponse(canWrap);
+            return new CanWrapResponse(WrapperName.Equals(methodInfo.RequestedWrapperName));
         }
 
         public AfterWrappedMethodDelegate BeforeWrappedMethod(InstrumentedMethodCall instrumentedMethodCall,
@@ -38,14 +39,13 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
             if (headers == null)
                 throw new NullReferenceException("headers");
 
-            const string brokerVendorName = "NServiceBus";
             var queueName = TryGetQueueName(logicalMessage);
             transaction = agent.CreateTransaction(
                 destinationType: MessageBrokerDestinationType.Queue,
-                brokerVendorName: brokerVendorName,
+                brokerVendorName: BrokerVendorName,
                 destination: queueName);
 
-            var segment = transaction.StartMessageBrokerSegment(instrumentedMethodCall.MethodCall, MessageBrokerDestinationType.Queue, MessageBrokerAction.Consume, brokerVendorName, queueName);
+            var segment = transaction.StartMessageBrokerSegment(instrumentedMethodCall.MethodCall, MessageBrokerDestinationType.Queue, MessageBrokerAction.Consume, BrokerVendorName, queueName);
 
             ProcessHeaders(headers, agent);
 
