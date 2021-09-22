@@ -23,7 +23,7 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
         private const string LogicalMessageType = "NServiceBus.Unicast.Messages.LogicalMessage";
         private const int LogicalMessageIndex = 1;
 
-        private static Func<object, object> _getHeadersFunc;
+        private static Func<object, Dictionary<string,string>> _getHeadersFunc;
 
         public CanWrapResponse CanWrap(InstrumentedMethodInfo methodInfo)
         {
@@ -62,12 +62,12 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
 
                 if (headers == null)
                 {
-                    headers = new Dictionary<string, object>();
+                    headers = new Dictionary<string, string>();
                     SetHeaders(carrier, headers);
                 }
                 else if (headers is IReadOnlyDictionary<string, object>)
                 {
-                    headers = new Dictionary<string, object>(headers);
+                    headers = new Dictionary<string, string>(headers);
                     SetHeaders(carrier, headers);
                 }
 
@@ -77,16 +77,16 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
             agent.CurrentTransaction.InsertDistributedTraceHeaders(logicalMessage, setHeaders);
         }
 
-        public static IDictionary<string, object> GetHeaders(object logicalMessage)
+        public static Dictionary<string, string> GetHeaders(object logicalMessage)
         {
-            var func = _getHeadersFunc ?? (_getHeadersFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<object>(logicalMessage.GetType(), "Headers"));
-            return func(logicalMessage) as IDictionary<string, object>;
+            var func = _getHeadersFunc ?? (_getHeadersFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<Dictionary<string, string>>(logicalMessage.GetType(), "Headers"));
+            return func(logicalMessage);
         }
 
-        public static void SetHeaders(object logicalMessage, IDictionary<string, object> headers)
+        public static void SetHeaders(object logicalMessage, Dictionary<string, string> headers)
         {
             // Unlike the GetHeaders function, we can't cache this action.  It is only valid for the specific logicalMessage object instance provided.
-            var action = VisibilityBypasser.Instance.GeneratePropertySetter<IDictionary<string, object>>(logicalMessage, "Headers");
+            var action = VisibilityBypasser.Instance.GeneratePropertySetter<Dictionary<string, string>>(logicalMessage, "Headers");
 
             action(headers);
         }

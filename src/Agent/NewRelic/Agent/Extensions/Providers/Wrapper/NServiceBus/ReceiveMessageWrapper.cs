@@ -5,9 +5,8 @@ using System;
 using System.Collections.Generic;
 using NewRelic.Agent.Api;
 using NewRelic.Agent.Extensions.Providers.Wrapper;
+using NewRelic.Reflection;
 using NewRelic.SystemExtensions;
-using NServiceBus.Pipeline.Contexts;
-using NServiceBus.Unicast.Messages;
 
 namespace NewRelic.Providers.Wrapper.NServiceBus
 {
@@ -19,7 +18,11 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
         private const string BrokerVendorName = "NServiceBus";
         private const string WrapperName = "ReceiveMessageWrapper";
 
+        private const int IncomingContextIndex = 0;
+
         public bool IsTransactionRequired => false;
+
+        private static Func<object, Dictionary<string,string>> _getHeadersFunc;
 
         public CanWrapResponse CanWrap(InstrumentedMethodInfo methodInfo)
         {
@@ -29,15 +32,21 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
         public AfterWrappedMethodDelegate BeforeWrappedMethod(InstrumentedMethodCall instrumentedMethodCall,
             IAgent agent, ITransaction transaction)
         {
-            var incomingContext = instrumentedMethodCall.MethodCall.MethodArguments.ExtractNotNullAs<IncomingContext>(0);
-            var logicalMessage = incomingContext.IncomingLogicalMessage;
-            if (logicalMessage == null)
-                throw new NullReferenceException("logicalMessage");
+            var incomingContext = instrumentedMethodCall.MethodCall.MethodArguments.ExtractNotNullAs<object>(IncomingContextIndex);
 
-            var headers = logicalMessage.Headers;
+            var logicalMessage = GetIncomingLogicalMessage(incomingContext);
+
+            if (logicalMessage == null)
+            {
+                throw new NullReferenceException("logicalMessage");
+            }
+
+            var headers = GetHeaders(logicalMessage);
 
             if (headers == null)
-                throw new NullReferenceException("headers");
+            {
+                throw new NullReferenceException("headers"); // again, not sure about this...
+            }
 
             var queueName = TryGetQueueName(logicalMessage);
             transaction = agent.CreateTransaction(
@@ -78,12 +87,40 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
             return null;
         }
 
-        private static string TryGetQueueName(LogicalMessage logicalMessage)
+        private static object GetIncomingLogicalMessage(object incomingContext)
         {
-            if (logicalMessage.MessageType == null)
-                return null;
-
-            return logicalMessage.MessageType.FullName;
+            var getLogicalMessageFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<object>(incomingContext.GetType(), "IncomingLogicalMessage");
+            return getLogicalMessageFunc(incomingContext);
         }
+
+        private static string TryGetQueueName(object logicalMessage)
+        {
+            var getMessageTypeFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<object>(logicalMessage.GetType(), "MessageType");
+
+            var messageType = getMessageTypeFunc(logicalMessage);
+
+            if (messageType == null)
+            {
+                return null;
+            }
+
+            var getFullNameFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<object>(messageType.GetType(), "FullName");
+            return getFullNameFunc(messageType) as string;
+        }
+
+        public static Dictionary<string, string> GetHeaders(object logicalMessage)
+        {
+            var func = _getHeadersFunc ?? (_getHeadersFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<Dictionary<string,string>>(logicalMessage.GetType(), "Headers"));
+            return func(logicalMessage);
+        }
+
+        public static void SetHeaders(object logicalMessage, IDictionary<string, object> headers)
+        {
+            // Unlike the GetHeaders function, we can't cache this action.  It is only valid for the specific logicalMessage object instance provided.
+            var action = VisibilityBypasser.Instance.GeneratePropertySetter<IDictionary<string, object>>(logicalMessage, "Headers");
+
+            action(headers);
+        }
+
     }
 }
