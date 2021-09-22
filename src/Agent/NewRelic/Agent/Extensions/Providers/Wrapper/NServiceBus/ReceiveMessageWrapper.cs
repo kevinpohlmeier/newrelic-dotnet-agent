@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using NewRelic.Agent.Api;
 using NewRelic.Agent.Extensions.Providers.Wrapper;
-using NewRelic.Reflection;
 using NewRelic.SystemExtensions;
 
 namespace NewRelic.Providers.Wrapper.NServiceBus
@@ -22,8 +21,6 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
 
         public bool IsTransactionRequired => false;
 
-        private static Func<object, Dictionary<string,string>> _getHeadersFunc;
-
         public CanWrapResponse CanWrap(InstrumentedMethodInfo methodInfo)
         {
             return new CanWrapResponse(WrapperName.Equals(methodInfo.RequestedWrapperName));
@@ -34,21 +31,21 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
         {
             var incomingContext = instrumentedMethodCall.MethodCall.MethodArguments.ExtractNotNullAs<object>(IncomingContextIndex);
 
-            var logicalMessage = GetIncomingLogicalMessage(incomingContext);
+            var logicalMessage = NServiceBusHelpers.GetIncomingLogicalMessage(incomingContext);
 
             if (logicalMessage == null)
             {
                 throw new NullReferenceException("logicalMessage");
             }
 
-            var headers = GetHeaders(logicalMessage);
+            var headers = NServiceBusHelpers.GetHeaders(logicalMessage);
 
             if (headers == null)
             {
                 throw new NullReferenceException("headers"); // again, not sure about this...
             }
 
-            var queueName = TryGetQueueName(logicalMessage);
+            var queueName = NServiceBusHelpers.TryGetQueueName(logicalMessage);
             transaction = agent.CreateTransaction(
                 destinationType: MessageBrokerDestinationType.Queue,
                 brokerVendorName: BrokerVendorName,
@@ -85,41 +82,6 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
                 }
             }
             return null;
-        }
-
-        private static object GetIncomingLogicalMessage(object incomingContext)
-        {
-            var getLogicalMessageFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<object>(incomingContext.GetType(), "IncomingLogicalMessage");
-            return getLogicalMessageFunc(incomingContext);
-        }
-
-        private static string TryGetQueueName(object logicalMessage)
-        {
-            var getMessageTypeFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<object>(logicalMessage.GetType(), "MessageType");
-
-            var messageType = getMessageTypeFunc(logicalMessage);
-
-            if (messageType == null)
-            {
-                return null;
-            }
-
-            var getFullNameFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<object>(messageType.GetType(), "FullName");
-            return getFullNameFunc(messageType) as string;
-        }
-
-        public static Dictionary<string, string> GetHeaders(object logicalMessage)
-        {
-            var func = _getHeadersFunc ?? (_getHeadersFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<Dictionary<string,string>>(logicalMessage.GetType(), "Headers"));
-            return func(logicalMessage);
-        }
-
-        public static void SetHeaders(object logicalMessage, IDictionary<string, object> headers)
-        {
-            // Unlike the GetHeaders function, we can't cache this action.  It is only valid for the specific logicalMessage object instance provided.
-            var action = VisibilityBypasser.Instance.GeneratePropertySetter<IDictionary<string, object>>(logicalMessage, "Headers");
-
-            action(headers);
         }
 
     }
