@@ -11,8 +11,7 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
     {
         private static Func<object, Dictionary<string, string>> _getHeadersFunc;
         private static Func<object, object> _getIncomingLogicalMessageFunc;
-        private static Func<object, object> _getMessageTypeFunc;
-        private static Func<object, string> _getMessageFullNameFunc;
+        private static Func<object, Type> _getMessageTypeFunc;
 
         public static object GetIncomingLogicalMessage(object incomingContext)
         {
@@ -44,7 +43,7 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
         public static string TryGetQueueName(object logicalMessage)
         {
             var getMessageTypeFunc = _getMessageTypeFunc ??
-                (_getMessageTypeFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<object>(logicalMessage.GetType(), "MessageType"));
+                (_getMessageTypeFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<Type>(logicalMessage.GetType(), "MessageType"));
 
             var messageType = getMessageTypeFunc(logicalMessage);
 
@@ -53,9 +52,7 @@ namespace NewRelic.Providers.Wrapper.NServiceBus
                 return null;
             }
 
-            var getMessageFullNameFunc = _getMessageFullNameFunc ??
-                (_getMessageFullNameFunc = VisibilityBypasser.Instance.GeneratePropertyAccessor<string>(messageType.GetType(), "FullName"));
-            return getMessageFullNameFunc(messageType);
+            return messageType.FullName;
         }
 
     }

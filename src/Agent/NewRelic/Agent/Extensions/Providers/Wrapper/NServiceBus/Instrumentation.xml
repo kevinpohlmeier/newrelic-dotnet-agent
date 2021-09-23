@@ -22,5 +22,10 @@ SPDX-License-Identifier: Apache-2.0
 ]" />
       </match>
     </tracerFactory>
-  </instrumentation>
+    <tracerFactory name="SendMessageWrapper6Plus">
+      <match assemblyName="NServiceBus.Core" className="NServiceBus.Pipeline`1">
+        <exactMethodMatcher methodName="Invoke" parameters="!0" />
+      </match>
+    </tracerFactory>
+    </instrumentation>
 </extension>
