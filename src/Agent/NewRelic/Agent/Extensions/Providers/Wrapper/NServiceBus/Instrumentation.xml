@@ -15,5 +15,12 @@ SPDX-License-Identifier: Apache-2.0
 				<exactMethodMatcher methodName="SendMessage" parameters="NServiceBus.Unicast.SendOptions,NServiceBus.Unicast.Messages.LogicalMessage" />
 			</match>
 		</tracerFactory>
-	</instrumentation>
+    <!--New NSB 6/7 instrumentation points-->
+    <tracerFactory name="ReceiveMessageWrapper6Plus">
+      <match assemblyName="NServiceBus.Core" className="NServiceBus.LoadHandlersConnector">
+        <exactMethodMatcher methodName="Invoke" parameters="NServiceBus.Pipeline.IIncomingLogicalMessageContext,System.Func`2[NServiceBus.Pipeline.IInvokeHandlerContext,System.Threading.Tasks.Task
+]" />
+      </match>
+    </tracerFactory>
+  </instrumentation>
 </extension>
